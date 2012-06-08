@@ -1,0 +1,315 @@
+---
+# ^^^ YAML documents must begin with the document separator "---"
+#### Example docblock, I like to put a descriptive comment at the top of my 
+#### playbooks.
+#
+# Overview: Playbook to bootstrap a new host for configuration management.
+# Applies to: production
+# Description: 
+#   Ensures that a host is configured for management with Ansible.
+# 
+###########
+###########
+#
+#
+# Note:
+# YAML, like Python, cares about whitespace.  Indent consistently throughout.
+# Be aware! Unlike Python, YAML refuses to allow the tab character for
+# indentation, so use spaces.
+#
+# Two-space indents feel comfortable to me, but do whatever you like.
+#
+# If you're new to YAML, keep in mind that YAML documents, like XML
+# documents, represent a tree-like structure of nodes and text. More
+# familiar with JSON?  Think of YAML as a strict and more flexible JSON
+# with fewer significant characters (e.g., :, "", {}, [])
+#
+# The curious may read more about YAML at:
+# http://www.yaml.org/spec/1.2/spec.html
+#
+
+
+### 
+# Notice the minus on the line below -- this starts the playbook's record
+# in the YAML document. Only one playbook is allowed per YAML file.  Indent
+# the body of the playbook.
+-
+
+  hosts: all
+  # Playbook attribute: hosts
+  # Required: yes
+  # Description:
+  #   The name of a host or group of hosts that this playbook should apply to.
+  #
+  ## Example values:
+  #   hosts: all -- applies to all hosts
+  #   hosts: hostname -- apply ONLY to the host 'hostname'
+  #   hosts: groupname -- apply to all hosts in groupname
+  #   hosts: group1,group2 -- apply to hosts in group1 & group2
+  #   hosts: group1,host1 -- mix and match hosts
+  #   hosts: *.mars.nasa.gov wildcard matches work as expected
+  #
+  ## Using a variable value for 'hosts'
+  #
+  # You can, in fact, set hosts to a variable, for example:
+  #
+  #   hosts: $groups -- apply to all hosts specified in the variable $groups
+  #
+  # This is handy for testing playbooks, running the same playbook against a
+  # staging environment before running it against production, occasional
+  # maintenance tasks, and other cases where you want to run the playbook
+  # against just a few systems rather than a whole group.
+  #
+  # If you set hosts as shown above, then you can specify which hosts to
+  # apply the playbook to on each run as so:
+  #
+  #   ansible-playbook playbook.yml --extra-vars="groups=staging"
+  #
+  # Use --extra-vars to set $groups to any combination of groups, hostnames,
+  # or wildcards just like the examples in the previous section.
+  #
+
+  sudo: True
+  # Playbook attribute: sudo
+  # Default: False
+  # Required: no
+  # Description:
+  #   If True, always use sudo to run this playbook, just like passing the
+  #   --sudo (or -s) flag to ansible or ansible-playbook.
+
+  # Playbook attribute:  user
+  # Default: "root'
+  # Required: no
+  # Description
+  #   Remote user to execute the playbook as
+  user: remoteuser
+
+  # Playbook attribute: vars
+  # Default: none
+  # Required: no
+  # Description:
+  #  Set configuration variables passed to templates & included playbooks
+  #  and handlers.  See below for examples.
+  vars:
+    color: brown
+
+    web:
+      memcache: 192.168.1.2
+      httpd: apache
+    # Tree-like structures work as expected, but be careful to surround
+    #  the variable name with ${} when using.
+    #
+    # For this example, ${web.memcache} and ${web.apache} are both usable
+    #  variables.
+
+    ########
+    # A possible gotcha!
+    #
+    # Variables do not expand inside the 'vars' section.
+    #
+    # The following will not work. $config_path will be set to the string
+    # "/etc/$config" NOT "/etc/ntpd.conf".  This is expected behavior
+    # and won't be fixed. Be explicit about the values of your variables.
+    config: ntpd.conf
+    config_path: /etc/$config
+
+    ########
+    # Variables can be set conditionally. This is actually a tiny snippet
+    # of Python, so be sure to quote any $vars and make the expression
+    # always evaluate to True or False.
+    is_color_blue: "'$color' == 'blue'"
+
+#####
+# TODO: Document useful builtin vars
+# $inventory_hostname
+
+  # Playbook attribute: vars_files
+  # Require: no
+  # Description:
+  #   Specifies a list of YAML files to load variables from.
+  #
+  #   Always evaluated after the 'vars' section, no matter which section
+  #   occurs first in the playbook.  Examples are below.
+  #
+  #   Example YAML for a file to be included by vars_files:
+  #   ---
+  #   - monitored_by: phobos.mars.nasa.gov
+  #   - fish_sticks: "good with custard"
+  #   # (END OF DOCUMENT)
+  #
+  #   Remove the indentation & comments of course, the '---' should be at
+  #   the left margin in the variables file.
+  #
+  vars_files:
+    # Include a file from this absolute path
+    - /srv/ansible/vars/vars_file.yml
+
+    # Include a file from a path relative to this playbook
+    - vars/vars_file.yml
+
+    # By the way, variables set in 'vars' are available here.
+    - vars/$hostname.yml
+
+    # TODO: test, are vars_prompt variables available here?
+
+    # It's also possible to pass an array of files, in which case
+    # Ansible will loop over the array and include the first file that
+    # exists.  If none exist, ansible-playbook will halt with an error.
+    #
+    # An excellent way to handle platform-specific differences.
+    - [ vars/$platform.yml, vars/default.yml ]
+
+
+  # Playbook attribute: vars_prompt
+  # Required: no
+  # Description:
+  #   A list of variables that must be manually input each time this playbook
+  #   runs.  Used for sensitive data and also things like release numbers that
+  #   vary on each deployment.  Ansible always prompts for this value, even
+  #   if it's passed in through the inventory or --extra-vars.
+  #
+  #   The input won't be echoed back to the terminal.
+  #
+  #   TODO: I think that the value is supposed to show as a prompt but this
+  #   doesn't work in the latest devel
+  #
+  vars_prompt:
+    passphrase: "Please enter the passphrase for the SSL certificate"
+
+    # Not sensitive, but something that should vary on each playbook run.
+    release_version: "Please enter a release tag"
+
+    # TODO: find out if ansible prompts even when var is passed in --extra-vars
+
+  # Playbook attribute: tasks
+  # Required: yes
+  # Description:
+  # A list of tasks to perform in this playbook.
+  tasks:
+    ##########
+    # The simplest task
+    # Each task must have a name & action.
+    - name: Check that the server's alive
+      action: ping
+
+    ##########
+    # Ansible modules do the work!
+    - name: Enforce permissions on /tmp/secret
+      action: file path=/tmp/secret mode=0600 owner=root group=root
+    #
+    # Format 'action' like above:
+    # <modulename> <module parameters>
+    #
+    # Test your parameters using:
+    #   ansible -m <module> -a "<module parameters>"
+    #
+    # Documentation for the stock modules:
+    # http://ansible.github.com/modules.html
+
+    ##########
+    # Use variables in the task!
+    #
+    # Variables expand in both name and action
+    - name: Paint the server $color
+      action: command echo $color
+
+
+    ##########
+    # Trigger handlers when things change!
+    #
+    # Ansible detects when an action changes something.  For example, the
+    # file permissions change, a file's content changed, a package was
+    # just installed (or removed), a user was created (or removed).  When 
+    # a change is detected, Ansible can optionally notify one or more
+    # Handlers.  Handlers can take any action that a Task can. Most
+    # commonly they are used to restart a service when its configuration
+    # changes. See "Handlers" below for more about handlers.
+    #
+    # Handlers are called by their name, which is very human friendly.
+
+    # This will call the "Restart Apache" handler whenever 'copy' alters
+    # the remote httpd.conf.
+    - name: Update the Apache config
+      action: copy src=httpd.conf dest=/etc/httpd/httpd.conf
+      notify: Restart Apache
+
+    # Here's how to specify more than one handler
+    - name: Update our app's configuration
+      action: copy src=myapp.conf dest=/etc/myapp/production.conf
+      notify:
+        - Restart Apache
+        - Restart Redis
+
+    ##########
+    # Include tasks from another file!
+    #
+    # Ansible can include a list of tasks from another file. The included file
+    # must represent a list of tasks, which is different than a playbook.
+    #
+    # See new_user.yml for an example.
+    # TODO: actually make the example
+    #
+    # In this example $user will be 'sklar'
+    #  and $color will be 'red' when evaluating new_user.yml
+    - include: tasks/new_user.yml user=sklar color=red
+
+    # Good, generic playbooks can be used multiple times:
+    - include: tasks/new_user.yml user=mosh color=mauve
+
+    # Variables expand before the include is evaluated:
+    - include: tasks/new_user.yml user=chris color=$color
+
+
+    ##########
+    # Run a task on each thing in a list!
+    #
+    # Ansible provides a simple loop facility. If 'with_items' is provided for
+    # a task, then the task will be run once for each item in the 'with_items'
+    # list.  $item changes each time through the loop.
+    - name: Create a file named $item in /tmp
+    action: command touch /tmp/$item
+    with_items:
+      - tangerine
+      - lemon
+
+    ##########
+    # Choose between files or templates!
+    #
+    # Sometimes you want to choose between local files depending on the
+    # value of the variable.  first_available_file checks for each file
+    # and, if the file exists calls the action with $item={filename}.
+    #
+    # Mostly useful for 'template' and 'copy' actions.  Only checks local
+    # files.
+    #
+    - name: Template a file
+    action: template src=$item dest=/etc/myapp/foo.conf
+    first_available_file:
+      # ansible_distribution will be "ubuntu", "debian", "rhel5", etc.
+      - templates/myapp/${ansible_distribution}.conf
+
+      # If we couldn't find a distribution-specific conf, then use default.conf:
+      - templates/myapp/default.conf
+
+    ##########
+    # Conditionally execute tasks!
+    #
+    # Sometimes you only want to run an action when a under certain conditions.
+    # Ansible will 'only_if' as a Python expression and will only run the
+    # action when the expression evaluates to True.
+    #
+    # If you're trying to run an # task only when a value changes,
+    # consider rewriting the task as a notification.
+    #
+    - name: "shutdown if my favorite color is blue"
+    action: command /sbin/shutdown -t now
+    only_if: '$is_color_blue'
+
+    # (See the vars section above for how we set $is_color_blue)
+    ##########
+    #
+
+    # TODO: figure out how 'connection: local' works, document 'user' and other attributes
+
+# TODO: finish this example, write a handler section
+# vim:ff=unix ts=2 sw=2 ai expandtab
