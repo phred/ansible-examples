@@ -362,7 +362,8 @@
     # etc.
     #
     # Handlers have human-readable names and are defined in the 'handlers'
-    #  section of a playbook.  See below for the definition of 'Restart nginx'
+    #  section of a playbook.  See below for the definitions of 'Restart nginx'
+    #  and 'Restart application'
     - name: update nginx config
       action: file src=nginx.conf dest=/etc/nginx/nginx.conf
       notify: Restart nginx
@@ -383,6 +384,7 @@
     - name: dump all postgres databases
       action: pg_dumpall -w -f /tmp/backup.psql
       user: postgres
+      sudo: False
 
     ##########
     # Run things locally!
