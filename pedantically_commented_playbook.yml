@@ -108,23 +108,24 @@
     #  variables.
 
     ########
-    # A possible gotcha!
+    # The following works in Ansible 0.5 and later, and will set $config_path
+    # "/etc/ntpd.conf" as expected.
     #
-    # Variables set inside 'vars' can't be used inside 'vars'.  (For now,
-    # see https://github.com/ansible/ansible/issues/422)
+    # In older versions, $config_path will be set to the string "/etc/$config"
     #
-    # The following will not work. $config_path will be set to the string
-    # "/etc/$config" NOT "/etc/ntpd.conf". 
     config: ntpd.conf
     config_path: /etc/$config
 
     ########
     # Variables can be set conditionally. This is actually a tiny snippet
-    # of Python, so be sure to quote any $vars and make the expression
-    # always evaluate to True or False.
+    # of Python that will get filled in and evaluated during playbook execution.
+    # This expressioun should always evaluate to True or False.
     #
     # In this playbook, this will always evaluate to False, because 'color'
     #  is set to 'brown' above.
+    #
+    # When ansible interprets the following, it will first expand $color to
+    # 'brown' and then evaluate 'brown' == 'blue' as a Python expression.
     is_color_blue: "'$color' == 'blue'"
 
     #####
