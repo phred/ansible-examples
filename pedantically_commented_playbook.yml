@@ -1,5 +1,6 @@
 ---
 # ^^^ YAML documents must begin with the document separator "---"
+#
 #### Example docblock, I like to put a descriptive comment at the top of my 
 #### playbooks.
 #
@@ -9,15 +10,15 @@
 #   Ensures that a host is configured for management with Ansible.
 # 
 ###########
-###########
 #
 #
 # Note:
 # YAML, like Python, cares about whitespace.  Indent consistently throughout.
 # Be aware! Unlike Python, YAML refuses to allow the tab character for
-# indentation, so use spaces.
+# indentation, so always use spaces.
 #
 # Two-space indents feel comfortable to me, but do whatever you like.
+# vim:ff=unix ts=2 sw=2 ai expandtab
 #
 # If you're new to YAML, keep in mind that YAML documents, like XML
 # documents, represent a tree-like structure of nodes and text. More
@@ -36,6 +37,7 @@
 -
 
   hosts: all
+  ###########
   # Playbook attribute: hosts
   # Required: yes
   # Description:
@@ -70,6 +72,7 @@
   #
 
   sudo: True
+  ###########
   # Playbook attribute: sudo
   # Default: False
   # Required: no
@@ -77,13 +80,15 @@
   #   If True, always use sudo to run this playbook, just like passing the
   #   --sudo (or -s) flag to ansible or ansible-playbook.
 
+  user: remoteuser
+  ###########
   # Playbook attribute:  user
   # Default: "root'
   # Required: no
   # Description
   #   Remote user to execute the playbook as
-  user: remoteuser
 
+  ###########
   # Playbook attribute: vars
   # Default: none
   # Required: no
@@ -105,11 +110,11 @@
     ########
     # A possible gotcha!
     #
-    # Variables do not expand inside the 'vars' section.
+    # Variables set inside 'vars' can't be used inside 'vars'.  (For now,
+    # see https://github.com/ansible/ansible/issues/422)
     #
     # The following will not work. $config_path will be set to the string
-    # "/etc/$config" NOT "/etc/ntpd.conf".  This is expected behavior
-    # and won't be fixed. Be explicit about the values of your variables.
+    # "/etc/$config" NOT "/etc/ntpd.conf". 
     config: ntpd.conf
     config_path: /etc/$config
 
@@ -117,14 +122,30 @@
     # Variables can be set conditionally. This is actually a tiny snippet
     # of Python, so be sure to quote any $vars and make the expression
     # always evaluate to True or False.
+    #
+    # In this playbook, this will always evaluate to False, because 'color'
+    #  is set to 'brown' above.
     is_color_blue: "'$color' == 'blue'"
 
-#####
-# TODO: Document useful builtin vars
-# $inventory_hostname
+    #####
+    # Builtin Variables
+    #
+    # Everything that the 'setup' module provides can be used in the
+    # vars section.  Ansible native, Facter, and Ohai facts can all be
+    # used.
+    #
+    # Run the setup module to see what else you can use:
+    # ansible -m setup -i /path/to/hosts.ini host1
+    main_vhost: ${ansible_fqdn}
+    public_ip:  ${ansible_eth0.ipv4.address}
+    
+    # vars_files is better suited for distro-specific settings, however...
+    is_ubuntu: "'${ansible_distribution}' == 'ubuntu'"
 
+
+  ##########
   # Playbook attribute: vars_files
-  # Require: no
+  # Required: no
   # Description:
   #   Specifies a list of YAML files to load variables from.
   #
@@ -136,6 +157,9 @@
   #   - monitored_by: phobos.mars.nasa.gov
   #   - fish_sticks: "good with custard"
   #   # (END OF DOCUMENT)
+  #
+  #   A 'vars' YAML file represents a list of variables. Don't use playbook
+  #   YAML for a 'vars' file.
   #
   #   Remove the indentation & comments of course, the '---' should be at
   #   the left margin in the variables file.
@@ -150,8 +174,6 @@
     # By the way, variables set in 'vars' are available here.
     - vars/$hostname.yml
 
-    # TODO: test, are vars_prompt variables available here?
-
     # It's also possible to pass an array of files, in which case
     # Ansible will loop over the array and include the first file that
     # exists.  If none exist, ansible-playbook will halt with an error.
@@ -159,7 +181,16 @@
     # An excellent way to handle platform-specific differences.
     - [ vars/$platform.yml, vars/default.yml ]
 
+    # Files in vars_files process in order, so later files can
+    # provide more specific configuration:
+    - [ vars/$host.yml ]
 
+    # Hey, but if you're doing host-specific variable files, you might
+    # consider setting the variable for a group in your hosts.ini and
+    # adding your host to that group. Just a thought.
+
+
+  ##########
   # Playbook attribute: vars_prompt
   # Required: no
   # Description:
@@ -168,7 +199,9 @@
   #   vary on each deployment.  Ansible always prompts for this value, even
   #   if it's passed in through the inventory or --extra-vars.
   #
-  #   The input won't be echoed back to the terminal.
+  #   The input won't be echoed back to the terminal.  Ansible will always
+  #   prompt for the variables in vars_prompt, even if they're passed in via
+  #   --extra-vars or group variables.
   #
   #   TODO: I think that the value is supposed to show as a prompt but this
   #   doesn't work in the latest devel
@@ -179,8 +212,7 @@
     # Not sensitive, but something that should vary on each playbook run.
     release_version: "Please enter a release tag"
 
-    # TODO: find out if ansible prompts even when var is passed in --extra-vars
-
+  ##########
   # Playbook attribute: tasks
   # Required: yes
   # Description:
@@ -246,14 +278,27 @@
     # Ansible can include a list of tasks from another file. The included file
     # must represent a list of tasks, which is different than a playbook.
     #
-    # See new_user.yml for an example.
-    # TODO: actually make the example
+    # Task list format:
+    #   ---
+    #   - name: create user
+    #     action: user name=$user color=$color
     #
+    #   - name: add user to group
+    #     action: user name=$user groups=$group append=true
+    #   # (END OF DOCUMENT)
+    #
+    #   A 'tasks' YAML file represents a list of tasks. Don't use playbook
+    #   YAML for a 'tasks' file.
+    #
+    #   Remove the indentation & comments of course, the '---' should be at
+    #   the left margin in the variables file.
+
     # In this example $user will be 'sklar'
-    #  and $color will be 'red' when evaluating new_user.yml
+    #  and $color will be 'red' inside new_user.yml
     - include: tasks/new_user.yml user=sklar color=red
 
-    # Good, generic playbooks can be used multiple times:
+    # In this example $user will be 'mosh'
+    #  and $color will be 'mauve' inside new_user.yml
     - include: tasks/new_user.yml user=mosh color=mauve
 
     # Variables expand before the include is evaluated:
@@ -267,10 +312,10 @@
     # a task, then the task will be run once for each item in the 'with_items'
     # list.  $item changes each time through the loop.
     - name: Create a file named $item in /tmp
-    action: command touch /tmp/$item
-    with_items:
-      - tangerine
-      - lemon
+      action: command touch /tmp/$item
+      with_items:
+        - tangerine
+        - lemon
 
     ##########
     # Choose between files or templates!
@@ -279,17 +324,17 @@
     # value of the variable.  first_available_file checks for each file
     # and, if the file exists calls the action with $item={filename}.
     #
-    # Mostly useful for 'template' and 'copy' actions.  Only checks local
+    # Mostly useful for 'template' and 'copy' actions.  Only examines local
     # files.
     #
     - name: Template a file
-    action: template src=$item dest=/etc/myapp/foo.conf
-    first_available_file:
-      # ansible_distribution will be "ubuntu", "debian", "rhel5", etc.
-      - templates/myapp/${ansible_distribution}.conf
+      action: template src=$item dest=/etc/myapp/foo.conf
+      first_available_file:
+        # ansible_distribution will be "ubuntu", "debian", "rhel5", etc.
+        - templates/myapp/${ansible_distribution}.conf
 
-      # If we couldn't find a distribution-specific conf, then use default.conf:
-      - templates/myapp/default.conf
+        # If we couldn't find a distribution-specific file, use default.conf:
+        - templates/myapp/default.conf
 
     ##########
     # Conditionally execute tasks!
@@ -298,18 +343,88 @@
     # Ansible will 'only_if' as a Python expression and will only run the
     # action when the expression evaluates to True.
     #
-    # If you're trying to run an # task only when a value changes,
-    # consider rewriting the task as a notification.
+    # If you're trying to run an task only when a value changes,
+    # consider rewriting the task as a handler and using 'notify' (see below).
     #
-    - name: "shutdown if my favorite color is blue"
-    action: command /sbin/shutdown -t now
-    only_if: '$is_color_blue'
+    - name: "shutdown all ubuntu"
+      action: command /sbin/shutdown -t now
+      only_if: "$is_ubuntu"
 
-    # (See the vars section above for how we set $is_color_blue)
+    - name: "shutdown the government"
+      action: command /sbin/shutdown -t now
+      only_if: "'$ansible_hostname' == 'the_government'"
+
     ##########
+    # Notify handlers when things change!
+    # 
+    # Each task can optionally have one or more handlers that get called
+    # when the task changes something -- creates a user, updates a file,
+    # etc.
     #
+    # Handlers have human-readable names and are defined in the 'handlers'
+    #  section of a playbook.  See below for the definition of 'Restart nginx'
+    - name: update nginx config
+      action: file src=nginx.conf dest=/etc/nginx/nginx.conf
+      notify: Restart nginx
 
-    # TODO: figure out how 'connection: local' works, document 'user' and other attributes
+    - name: roll out new code
+      action: git repo=git://codeserver/myapp.git dest=/srv/myapp version=HEAD branch=release
+      notify:
+        - Restart nginx
+        - Restart application
 
-# TODO: finish this example, write a handler section
-# vim:ff=unix ts=2 sw=2 ai expandtab
+
+    ##########
+    # Run things as other users!
+    #
+    # Each task has an optional 'user' and 'sudo' flag to indicate which
+    # user a task should run as and whether or not to use 'sudo' to switch
+    # to that user.
+    - name: dump all postgres databases
+      action: pg_dumpall -w -f /tmp/backup.psql
+      user: postgres
+
+    ##########
+    # Run things locally!
+    #
+    # Each task also has a 'connection' setting to control whether a local
+    # or remote connection is used.  The only valid options now are 'local'
+    # or 'paramiko'.  'paramiko' is assumed by the command line tools.
+    #
+    # This can also be set at the top level of the playbook.
+    - name: create tempfile
+      action: dd if=/dev/urandom of=/tmp/random.txt count=100
+      connection: local
+
+  ##########
+  # Playbook attribute: handlers
+  # Required: no
+  # Description:
+  #   Handlers are tasks that run when another task has changed something.
+  #   See above for examples.  The format is exactly the same as for tasks.
+  #   Note that if multiple tasks notify the same handler in a playbook run
+  #   that handler will only run once.
+  #
+  #   Handlers are referred to by name. They will be run in the order declared
+  #   in the playbook.  For example: if a task were to notify the
+  #   handlers in reverse order like so:
+  #
+  #   - task: touch a file
+  #     action: file name=/tmp/lock.txt
+  #     notify:
+  #     - Restart application
+  #     - Restart nginx
+  #
+  #   The "Restart nginx" handler will still run before the "Restart
+  #   application" handler because it is declared first in this playbook.
+  handlers:
+    - name: Restart nginx
+      action: service name=nginx state=restarted
+
+    # Any module can be used for the handler action
+    - name: Restart application
+      action: command /srv/myapp/restart.sh
+
+    # It's also possible to include handlers from another file.  Structure is
+    # the same as a tasks file, see the tasks section above for an example.
+    - include: handlers/site.yml
