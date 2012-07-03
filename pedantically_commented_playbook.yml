@@ -155,8 +155,8 @@
   #
   #   Example YAML for a file to be included by vars_files:
   #   ---
-  #   - monitored_by: phobos.mars.nasa.gov
-  #   - fish_sticks: "good with custard"
+  #   monitored_by: phobos.mars.nasa.gov
+  #   fish_sticks: "good with custard"
   #   # (END OF DOCUMENT)
   #
   #   A 'vars' YAML file represents a list of variables. Don't use playbook
