@@ -47,9 +47,12 @@
   #   hosts: all -- applies to all hosts
   #   hosts: hostname -- apply ONLY to the host 'hostname'
   #   hosts: groupname -- apply to all hosts in groupname
-  #   hosts: group1,group2 -- apply to hosts in group1 & group2
-  #   hosts: group1,host1 -- mix and match hosts
+  #   hosts: group1:&group2 -- apply only to hosts in group1 & group2
+  #   hosts: group1:host1 -- mix and match hosts
   #   hosts: *.mars.nasa.gov wildcard matches work as expected
+  #
+  # Documentation:
+  # http://docs.ansible.com/intro_patterns.html
   #
   ## Using a variable value for 'hosts'
   #
